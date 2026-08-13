@@ -18,7 +18,7 @@ pages, shared JB2 dictionaries, and bundled multipage documents.
 
 Decoding is done by [DjVuLibre](https://djvu.sourceforge.net), built from source
 and linked statically, so the extension depends on nothing outside its own
-bundle — no Homebrew, no dylibs to keep in sync. Universal: arm64 and x86_64.
+bundle. Universal: arm64 and x86_64.
 
 ## Install
 
@@ -32,8 +32,7 @@ Download the `.dmg` from the releases page, or build it yourself:
 Then:
 
 1. Drag **DjVu Thumbnails.app** to `/Applications`.
-2. Clear the quarantine flag (see [Signing](#signing) — this step is not
-   optional if the app came from another machine):
+2. Clear the quarantine flag:
    ```bash
    xattr -dr com.apple.quarantine "/Applications/DjVu Thumbnails.app"
    ```
@@ -48,18 +47,6 @@ If Finder still shows generic icons for files whose icons it had already cached:
 ```bash
 qlmanage -r cache && killall Finder
 ```
-
-## Signing
-
-The app is signed **ad hoc**, because signing with a Developer ID and notarizing
-requires a paid Apple Developer account. Gatekeeper therefore quarantines the app
-on any machine it did not come from, and a quarantined Quick Look extension is
-refused **silently** — the app opens and looks perfectly healthy while Finder
-keeps showing generic icons, with nothing to explain why. Hence step 2 above.
-
-With a Developer ID, set `CODE_SIGN_IDENTITY` and `DEVELOPMENT_TEAM` in
-[`project.yml`](project.yml) and notarize the DMG with `xcrun notarytool`; the
-quarantine step then disappears.
 
 ## Build from source
 
@@ -86,7 +73,7 @@ universal library, generates the Xcode project and builds a universal app.
 The Xcode project is generated, not committed — edit
 [`project.yml`](project.yml) and run `xcodegen generate`.
 
-## How it fits together
+## Structure
 
 | Component | Role |
 | --- | --- |
