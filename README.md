@@ -1,10 +1,15 @@
-<img src="docs/icon.png" alt="" width="96" align="left">
+<table>
+<tr>
+<td><img src="docs/icon.png" alt="" width="96"></td>
+<td>
 
 # DjVu Thumbnails
 
 **Finder thumbnails for DjVu documents on macOS — the way PDFs already get them.**
 
-<br clear="left">
+</td>
+</tr>
+</table>
 
 A Quick Look thumbnail extension that renders page 1 of `.djvu` / `.djv` files, so
 Finder shows the cover instead of a generic blank icon. Every DjVu flavour is
