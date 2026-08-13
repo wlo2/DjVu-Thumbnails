@@ -1,0 +1,56 @@
+## Generated project
+# Regenerate with `xcodegen generate` (or scripts/build-app.sh, which does it)
+DjVuThumbnails.xcodeproj/
+
+## Build output
+build/
+DerivedData/
+*.dmg
+*.o
+*.a
+
+## Vendored DjVuLibre
+# Tarball, build trees and install prefixes are all reproducible from
+# scripts/build-djvulibre.sh
+vendor/
+
+## Generated test fixtures
+# Recreate with scripts/make-fixtures.sh
+tests/fixtures/
+
+## Local sample documents
+sample*.djvu
+sample*.djv
+
+## Xcode
+*.xcuserstate
+*.xcuserdatad
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.xcarchive
+timeline.xctimeline
+playground.xcworkspace
+.swiftpm/
+
+## Swift Package Manager
+.build/
+Package.resolved
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+## Editors
+.idea/
+.vscode/
+*.swp
+*~

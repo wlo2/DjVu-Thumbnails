@@ -1,0 +1,84 @@
+name: DjVuThumbnails
+
+options:
+  bundleIdPrefix: org.djvuthumbnails
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "12.0"
+
+settings:
+  base:
+    # Explicit, because ARCHS_STANDARD no longer includes Intel in recent Xcode.
+    ARCHS: "arm64 x86_64"
+    ONLY_ACTIVE_ARCH: NO
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # No paid developer account is required: ad-hoc signing is enough for a
+    # locally installed Quick Look extension.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: YES
+    # Keep the builder's absolute paths out of the shipped binaries, in case any
+    # source uses __FILE__.
+    OTHER_CFLAGS: "-ffile-prefix-map=$(SRCROOT)/="
+    # Without stripping, the symbol table keeps debug-map entries (SO/OSO stabs)
+    # naming the absolute path of every object file, which leaks the build tree
+    # into anything published. Symbols stay available in the .dSYM.
+    DEPLOYMENT_POSTPROCESSING: YES
+    STRIP_INSTALLED_PRODUCT: YES
+    STRIP_STYLE: all
+    COPY_PHASE_STRIP: NO
+    GCC_WARN_ABOUT_RETURN_TYPE: YES
+    CLANG_WARN_DOCUMENTATION_COMMENTS: NO
+
+targets:
+  DjVuThumbnails:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/DjVuThumbnails
+      # AppIcon.icns is committed; regenerate with scripts/make-icon.swift
+      - path: Sources/DjVuThumbnails/Resources/AppIcon.icns
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.djvuthumbnails.DjVuThumbnails
+        PRODUCT_NAME: DjVu Thumbnails
+        INFOPLIST_FILE: Sources/DjVuThumbnails/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/DjVuThumbnails/DjVuThumbnails.entitlements
+        ENABLE_APP_SANDBOX: NO
+    dependencies:
+      - target: DjVuThumbnailExtension
+        embed: true
+      - sdk: QuickLookThumbnailing.framework
+
+  DjVuThumbnailExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/DjVuThumbnailExtension
+      - path: Sources/CDjVuRender
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.djvuthumbnails.DjVuThumbnails.Thumbnail
+        PRODUCT_NAME: DjVuThumbnailExtension
+        INFOPLIST_FILE: Sources/DjVuThumbnailExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/DjVuThumbnailExtension/DjVuThumbnailExtension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/DjVuThumbnailExtension/DjVuThumbnailExtension-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/Sources/CDjVuRender/include
+          - $(SRCROOT)/vendor/djvulibre-install/include
+        LIBRARY_SEARCH_PATHS:
+          - $(SRCROOT)/vendor/djvulibre-install/lib
+        # DjVuLibre is linked statically, so the extension carries its own
+        # decoder and depends on nothing outside its bundle.
+        OTHER_LDFLAGS:
+          - -ldjvulibre
+          - -lc++
+    dependencies:
+      - sdk: QuickLookThumbnailing.framework
+      - sdk: CoreGraphics.framework
+      - sdk: CoreFoundation.framework
