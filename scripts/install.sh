@@ -23,14 +23,21 @@ echo "==> Registering with Launch Services"
 # xcodebuild registers the build copy too; with both registered, Quick Look may
 # run the dev build instead of the installed one.
 "$LSREGISTER" -u "$SRC"
-pluginkit -r "$SRC/Contents/PlugIns/DjVuThumbnailExtension.appex" 2>/dev/null || true
 "$LSREGISTER" -f "$DEST"
 
 echo "==> Enabling the Quick Look extension"
-# Explicit, because Launch Services registers it lazily and, right after the
-# removal above, sometimes not at all.
-pluginkit -a "$DEST/Contents/PlugIns/DjVuThumbnailExtension.appex"
+# Explicit, because Launch Services registers it lazily and sometimes not at all.
+APPEX="$DEST/Contents/PlugIns/DjVuThumbnailExtension.appex"
+pluginkit -a "$APPEX"
 pluginkit -e use -i org.djvuthumbnails.DjVuThumbnails.Thumbnail 2>/dev/null || true
+# pkd applies these in the background; fail loudly rather than leave Finder
+# with no extension.
+for _ in $(seq 20); do
+  pluginkit -m -v -i org.djvuthumbnails.DjVuThumbnails.Thumbnail | grep -qF "$APPEX" && break
+  sleep 0.5
+done
+pluginkit -m -v -i org.djvuthumbnails.DjVuThumbnails.Thumbnail | grep -qF "$APPEX" \
+  || { echo "The extension did not register; run this script again." >&2; exit 1; }
 
 echo "==> Resetting the Quick Look thumbnail cache"
 qlmanage -r >/dev/null 2>&1 || true
