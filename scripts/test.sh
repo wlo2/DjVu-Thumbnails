@@ -1,8 +1,9 @@
 #!/bin/bash
-# Two layers of checks:
+# Three layers of checks:
 #   1. the decoder shim on its own, under AddressSanitizer;
-#   2. the installed extension through Quick Look, which is the path Finder uses.
-# Layer 2 only passes once the app has been installed and registered.
+#   2. orientation and colour of its output against synthetic fixtures;
+#   3. the installed extension through Quick Look, which is the path Finder uses.
+# Layer 3 only passes once this build has been installed and registered.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +12,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 FIXTURES="$ROOT/tests/fixtures"
-if [ ! -f "$FIXTURES/page1.djvu" ]; then
+if [ ! -f "$FIXTURES/truncated.djvu" ]; then
   "$ROOT/scripts/make-fixtures.sh" >/dev/null
 fi
 
@@ -27,18 +28,23 @@ clang -O1 -g -fsanitize=address \
 for name in page1 page2 bitonal multipage; do
   "$WORK/render_smoke" "$FIXTURES/$name.djvu" 512 "$WORK/$name.ppm" || status=1
 done
-# A non-DjVu file must be rejected rather than crash or hang.
-if "$WORK/render_smoke" "$FIXTURES/corrupt.djvu" 512 >/dev/null 2>&1; then
-  echo "FAIL corrupt.djvu was accepted"
-  status=1
+# A non-DjVu file, a truncated one and a missing one must all be rejected
+# rather than crash or hang.
+for f in "$FIXTURES/corrupt.djvu" "$FIXTURES/truncated.djvu" "$ROOT/does-not-exist.djvu"; do
+  if "$WORK/render_smoke" "$f" 512 >/dev/null 2>&1; then
+    echo "FAIL $(basename "$f") was accepted"
+    status=1
+  else
+    echo "OK   $(basename "$f") rejected"
+  fi
+done
+# Errors are logged as DjVuLibre's message name and parameters, on one line.
+message="$("$WORK/render_smoke" "$ROOT/does-not-exist.djvu" 512)"
+if grep -q "(ByteStream.open_fail Parameter: .*does-not-exist.djvu Parameter: " <<<"$message"; then
+  echo "OK   error message is readable"
 else
-  echo "OK   corrupt.djvu rejected"
-fi
-if "$WORK/render_smoke" "$ROOT/does-not-exist.djvu" 512 >/dev/null 2>&1; then
-  echo "FAIL missing file was accepted"
+  echo "FAIL error message for a missing file is not 'ByteStream.open_fail ...'"
   status=1
-else
-  echo "OK   missing file rejected"
 fi
 
 echo
@@ -92,11 +98,20 @@ PY
 
 echo
 echo "== Quick Look end to end (needs the app installed) =="
-# qlcheck links the shim too, so it can compare Quick Look's thumbnail against
-# a direct decode of the same file.
+# Quick Look runs whatever is installed, so check that it is this build.
+EXT="PlugIns/DjVuThumbnailExtension.appex/Contents/MacOS/DjVuThumbnailExtension"
+BUILT="$ROOT/build/DerivedData/Build/Products/${CONFIGURATION:-Release}/DjVu Thumbnails.app/Contents/$EXT"
+INSTALLED="${DEST_DIR:-/Applications}/DjVu Thumbnails.app/Contents/$EXT"
+if ! cmp -s "$BUILT" "$INSTALLED"; then
+  echo "FAIL the installed extension is not this build; run build-app.sh and install.sh"
+  status=1
+fi
+# qlcheck links the extension's decoding code too, so it can compare Quick
+# Look's thumbnail against a direct decode of the same file.
 clang -O2 -c Sources/CDjVuRender/DjVuRender.c -o "$WORK/DjVuRender.o" \
   -ISources/CDjVuRender/include -Ivendor/djvulibre-install/include || exit 1
-swiftc -O tests/qlcheck.swift "$WORK/DjVuRender.o" \
+swiftc -O tests/qlcheck/main.swift Sources/DjVuThumbnailExtension/ThumbnailProvider.swift \
+  "$WORK/DjVuRender.o" \
   -import-objc-header Sources/CDjVuRender/include/DjVuRender.h \
   vendor/djvulibre-install/lib/libdjvulibre.a -lc++ -framework CoreFoundation \
   -o "$WORK/qlcheck" || exit 1

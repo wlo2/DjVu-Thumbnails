@@ -5,27 +5,26 @@
 
 # DjVu Thumbnails
 
-**Finder thumbnails for DjVu documents on macOS — the way PDFs already get them.**
+**Finder thumbnails for DjVu documents on macOS, like the ones PDFs already get.**
 
 </td>
 </tr>
 </table>
 
 A Quick Look thumbnail extension that renders page 1 of `.djvu` / `.djv` files, so
-Finder shows the cover instead of a generic blank icon. Every DjVu flavour is
-handled: bitonal JB2 scans, IW44 colour pages, foreground/background layered
+Finder shows the cover instead of a generic blank icon. It handles every DjVu
+flavour: bitonal JB2 scans, IW44 colour pages, foreground/background layered
 pages, shared JB2 dictionaries, and bundled multipage documents.
 
-Decoding is done by [DjVuLibre](https://djvu.sourceforge.net), built from source
-and linked statically, so the extension depends on nothing outside its own
-bundle. Universal: arm64 and x86_64.
+[DjVuLibre](https://djvu.sourceforge.net) does the decoding. It is built from
+source and linked statically, so the extension depends on nothing outside its
+own bundle. Universal: arm64 and x86_64.
 
 ## Install
 
 Download the `.dmg` from the releases page, or build it yourself:
 
 ```bash
-./scripts/build-app.sh
 ./scripts/make-dmg.sh
 ```
 
@@ -36,13 +35,13 @@ Then:
    ```bash
    xattr -dr com.apple.quarantine "/Applications/DjVu Thumbnails.app"
    ```
-3. **Launch the app once.** This is what registers the DjVu document type with
-   macOS. Quit it afterwards; Finder keeps working.
+3. **Launch the app once.** This registers the DjVu document type with macOS.
+   You can quit it afterwards and Finder keeps working.
 
 To install a local build straight into `/Applications` instead, use
 `./scripts/install.sh`.
 
-If Finder still shows generic icons for files whose icons it had already cached:
+If Finder still shows generic icons for files it had already cached:
 
 ```bash
 qlmanage -r cache && killall Finder
@@ -50,14 +49,15 @@ qlmanage -r cache && killall Finder
 
 ## Build from source
 
-Requirements: macOS 12+, Xcode command line tools, and
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+Requirements: macOS 12+, full Xcode (the command line tools alone cannot build
+the SwiftUI app), and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`).
 
 ```bash
 ./scripts/build-app.sh
 ```
 
-This downloads DjVuLibre 3.5.29 (checksum verified), builds it as a static
+This downloads DjVuLibre 3.5.29 and verifies its checksum, builds it as a static
 universal library, generates the Xcode project and builds a universal app.
 
 | Script | Purpose |
@@ -65,12 +65,12 @@ universal library, generates the Xcode project and builds a universal app.
 | `build-djvulibre.sh` | Fetches and builds DjVuLibre as a static universal `.a` |
 | `build-app.sh` | Generates the project and builds the app |
 | `install.sh` | Installs to `/Applications` and registers it |
-| `make-dmg.sh` | Packages a distributable `.dmg` |
+| `make-dmg.sh` | Packages a distributable `.dmg` and puts the DjVuLibre source tarball beside it; upload both to the release |
 | `make-icon.swift` | Regenerates `AppIcon.icns` |
 | `make-fixtures.sh` | Regenerates the DjVu test fixtures |
 | `test.sh` | Runs the test suite |
 
-The Xcode project is generated, not committed — edit
+The Xcode project is generated and not committed. To change it, edit
 [`project.yml`](project.yml) and run `xcodegen generate`.
 
 ## Structure
@@ -81,23 +81,24 @@ The Xcode project is generated, not committed — edit
 | [`Sources/DjVuThumbnailExtension`](Sources/DjVuThumbnailExtension) | The `QLThumbnailProvider`. Sandboxed, statically linked against DjVuLibre |
 | [`Sources/DjVuThumbnails`](Sources/DjVuThumbnails) | Host app: declares the DjVu content type, and lets you drop a file to verify the extension is live |
 
-Three things are worth knowing if you work on this:
+If you work on the code, three things will save you time.
 
 **macOS ships no DjVu type declaration at all.** Nothing on a stock system maps
-`.djvu` onto a content type, so a thumbnail extension would never be consulted.
-The host app declares `com.lizardtech.djvu` in `UTExportedTypeDeclarations` and
-the extension registers for that type. This is why the app is not merely a
-container you can skip launching.
+`.djvu` onto a content type, so Quick Look would never consult a thumbnail
+extension. The host app declares `com.lizardtech.djvu` in
+`UTExportedTypeDeclarations` and the extension registers for that type. That is
+why the app has to be launched once.
 
 **Quick Look's drawing context is not in the units the API implies.**
 `QLThumbnailReply(contextSize:drawing:)` takes a size in points, but the context
-handed to the drawing block is not necessarily scaled to match. Assuming it is
-parks the page in a corner at the wrong scale. The provider takes its drawing
-rect from `context.boundingBoxOfClipPath` instead, which is correct either way.
+handed to the drawing block is not necessarily scaled to match. Code that assumes
+it is parks the page in a corner at the wrong scale. The provider takes its
+drawing rect from `context.boundingBoxOfClipPath` instead, which is correct
+either way.
 
-**`xcodebuild` needs `-destination 'generic/platform=macOS'`.** Without it, only
-the current Mac's architecture gets built — silently, with no warning — and the
-result will not run on Intel.
+**`xcodebuild` needs `-destination 'generic/platform=macOS'`.** Without it,
+`xcodebuild` builds only the current Mac's architecture and gives no warning, so
+the result will not run on Intel.
 
 ## Tests
 
@@ -105,21 +106,22 @@ result will not run on Intel.
 ./scripts/test.sh
 ```
 
-Three layers:
+The suite has three layers:
 
-1. **The decoder shim under AddressSanitizer**, including a non-DjVu file and a
-   missing file, which must both be rejected rather than crash or hang.
-2. **Orientation and colour assertions** against synthetic fixtures, plus a
-   check that a multipage document thumbnails its cover and not a later page.
-3. **The installed extension through Quick Look**, at large and Finder-icon
-   sizes, with each thumbnail compared against a direct decode of the same file.
-   That comparison is the point: a thumbnail letterboxed into a corner, upside
-   down or colour-swapped still has plausible dimensions, but will not match.
+1. The decoder shim under AddressSanitizer. A non-DjVu file, a truncated one and
+   a missing one must all be rejected without a crash or a hang.
+2. Orientation and colour assertions against synthetic fixtures, plus a check
+   that a multipage document thumbnails its cover and not a later page.
+3. The installed extension through Quick Look, at large and Finder-icon sizes.
+   Each thumbnail is compared against a direct decode of the same file. A
+   thumbnail that is letterboxed into a corner, upside down or colour-swapped
+   still has plausible dimensions, and only this comparison catches it.
 
-Layer 3 needs the app installed and registered. Drop any `sample*.djvu` files in
-the repository root and the tests will pick them up.
+Layer 3 needs the app installed and registered. It fails if the installed
+extension is not the one in `build/`, so run `install.sh` after building. Any
+`sample*.djvu` files in the repository root are tested too.
 
 ## Licence
 
-GPL v2 — see [LICENSE](LICENSE). DjVuLibre is GPL v2 and is linked statically,
+GPL v2 (see [LICENSE](LICENSE)). DjVuLibre is GPL v2 and is linked statically,
 so this extension is GPL v2 as well.

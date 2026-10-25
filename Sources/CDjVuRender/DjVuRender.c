@@ -14,7 +14,29 @@ static void djv_record_error(const char *message) {
     if (!message) {
         return;
     }
-    snprintf(djv_last_error, sizeof(djv_last_error), "%s", message);
+    // DjVuLibre's message texts are not shipped, so it reports an error as an
+    // "Unrecognized DjVu Message" header, then "Message name: <id>" and one line
+    // per parameter. Keep everything from the id on, as a single line.
+    static const char marker[] = "Message name:";
+    const char *name = strstr(message, marker);
+    if (name) {
+        message = name + sizeof(marker) - 1;
+    }
+    size_t n = 0;
+    for (; *message && n + 1 < sizeof(djv_last_error); message++) {
+        char c = *message;
+        if ((unsigned char)c < 0x20) {
+            c = ' ';  // newlines, tabs and DjVuLibre's separator bytes
+        }
+        if (c == ' ' && (n == 0 || djv_last_error[n - 1] == ' ')) {
+            continue;
+        }
+        djv_last_error[n++] = c;
+    }
+    while (n > 0 && djv_last_error[n - 1] == ' ') {
+        n--;
+    }
+    djv_last_error[n] = '\0';
 }
 
 int DJVLastErrorMessage(char *buffer, size_t bufferSize) {

@@ -20,9 +20,16 @@ rm -rf "$DEST"
 cp -R "$SRC" "$DEST"
 
 echo "==> Registering with Launch Services"
+# xcodebuild registers the build copy too; with both registered, Quick Look may
+# run the dev build instead of the installed one.
+"$LSREGISTER" -u "$SRC"
+pluginkit -r "$SRC/Contents/PlugIns/DjVuThumbnailExtension.appex" 2>/dev/null || true
 "$LSREGISTER" -f "$DEST"
 
 echo "==> Enabling the Quick Look extension"
+# Explicit, because Launch Services registers it lazily and, right after the
+# removal above, sometimes not at all.
+pluginkit -a "$DEST/Contents/PlugIns/DjVuThumbnailExtension.appex"
 pluginkit -e use -i org.djvuthumbnails.DjVuThumbnails.Thumbnail 2>/dev/null || true
 
 echo "==> Resetting the Quick Look thumbnail cache"

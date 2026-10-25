@@ -30,7 +30,6 @@ typedef enum {
 /// Decodes page 1 (the cover) and scales it so its longest side is at most
 /// `maxPixelSize` pixels, never upscaling beyond the page's natural size.
 /// On DJVResultOK the caller owns `out->data` and must call DJVBitmapFree.
-/// `errorMessage`, if non-NULL, receives a static or bounded description.
 DJVResult DJVRenderFirstPage(const char *path, int maxPixelSize, DJVBitmap *out);
 
 void DJVBitmapFree(DJVBitmap *bitmap);

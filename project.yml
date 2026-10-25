@@ -12,8 +12,8 @@ settings:
     ARCHS: "arm64 x86_64"
     ONLY_ACTIVE_ARCH: NO
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.1"
+    CURRENT_PROJECT_VERSION: "2"
     # No paid developer account is required: ad-hoc signing is enough for a
     # locally installed Quick Look extension.
     CODE_SIGN_STYLE: Manual
@@ -47,7 +47,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.djvuthumbnails.DjVuThumbnails
         PRODUCT_NAME: DjVu Thumbnails
         INFOPLIST_FILE: Sources/DjVuThumbnails/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Sources/DjVuThumbnails/DjVuThumbnails.entitlements
         ENABLE_APP_SANDBOX: NO
     dependencies:
       - target: DjVuThumbnailExtension

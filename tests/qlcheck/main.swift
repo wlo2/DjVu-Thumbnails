@@ -1,8 +1,8 @@
 // End-to-end check of the installed extension.
 //
 // For each file it asks Quick Look — the same path Finder uses — for a
-// thumbnail, then decodes the same file directly through the C shim and
-// compares the two. Comparing against a direct decode is what makes this
+// thumbnail, then decodes the same file directly through the extension's
+// DjVuPage and compares the two. Comparing against a direct decode is what makes this
 // meaningful: a thumbnail that is letterboxed into a corner, upside down, or
 // colour-swapped still has plausible dimensions, but it will not match.
 //
@@ -72,25 +72,6 @@ func meanAbsoluteDifference(_ a: [UInt8], _ b: [UInt8]) -> Double {
     return Double(total) / Double(a.count)
 }
 
-/// Decodes the cover directly through the shim, bypassing Quick Look.
-func decodeDirectly(_ url: URL, maximumPixelSize: Int) -> CGImage? {
-    var bitmap = DJVBitmap()
-    let result = url.withUnsafeFileSystemRepresentation { path -> DJVResult in
-        guard let path else { return DJVResultBadArgument }
-        return DJVRenderFirstPage(path, Int32(maximumPixelSize), &bitmap)
-    }
-    guard result == DJVResultOK, let data = bitmap.data else { return nil }
-    defer { DJVBitmapFree(&bitmap) }
-    guard let provider = CGDataProvider(data: Data(bytes: data, count: bitmap.length) as CFData)
-    else { return nil }
-    return CGImage(
-        width: Int(bitmap.width), height: Int(bitmap.height), bitsPerComponent: 8,
-        bitsPerPixel: 24, bytesPerRow: Int(bitmap.bytesPerRow),
-        space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue), provider: provider,
-        decode: nil, shouldInterpolate: true, intent: .defaultIntent)
-}
-
 // A missing content type is the most likely reason for the extension never
 // being consulted at all, so report it up front.
 if let type = UTType(filenameExtension: "djvu") {
@@ -126,7 +107,11 @@ for path in paths {
         }
         let image = representation.cgImage
 
-        guard let reference = decodeDirectly(url, maximumPixelSize: max(image.width, image.height))
+        // DjVuPage is the extension's own decoder, so this bypasses only Quick Look.
+        guard
+            let reference = try? DjVuPage(
+                url: url, maximumPixelSize: max(image.width, image.height)
+            ).image
         else {
             failures += 1
             print("FAIL \(name): Quick Look produced an image but direct decoding failed")

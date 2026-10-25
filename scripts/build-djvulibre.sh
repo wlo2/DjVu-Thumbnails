@@ -20,13 +20,20 @@ mkdir -p "$VENDOR"
 
 if [ ! -f "$TARBALL" ]; then
   echo "==> Downloading djvulibre-$VERSION"
-  curl -fsSL -o "$TARBALL" "$URL"
+  # Via a temporary name, so an interrupted download is retried, not reused.
+  curl -fsSL -o "$TARBALL.part" "$URL"
+  mv "$TARBALL.part" "$TARBALL"
 fi
 echo "$SHA256  $TARBALL" | shasum -a 256 -c -
 
 if [ ! -d "$SRC" ]; then
   echo "==> Extracting"
-  tar xzf "$TARBALL" -C "$VENDOR"
+  # Via a temporary folder, so an interrupted extraction is redone, not reused.
+  rm -rf "$SRC.part"
+  mkdir "$SRC.part"
+  tar xzf "$TARBALL" -C "$SRC.part"
+  mv "$SRC.part/djvulibre-$VERSION" "$SRC"
+  rmdir "$SRC.part"
 fi
 
 # DjVuLibre compiles its --prefix into the library as a data directory path (it
@@ -40,7 +47,8 @@ build_arch() {
   local bdir="$VENDOR/build-$arch" pfx="$VENDOR/prefix-$arch$NEUTRAL_PREFIX"
   local destdir="$VENDOR/prefix-$arch"
 
-  if [ -f "$pfx/lib/libdjvulibre.a" ]; then
+  # The stamp makes a VERSION bump rebuild instead of reusing the old library.
+  if [ -f "$pfx/lib/libdjvulibre.a" ] && [ "$(cat "$destdir/.version" 2>/dev/null)" = "$VERSION" ]; then
     echo "==> $arch already built"
     return
   fi
@@ -77,6 +85,7 @@ build_arch() {
     || { tail -60 "$bdir/make.log"; exit 1; }
   make -C libdjvu install DESTDIR="$destdir" >>"$bdir/make.log" 2>&1 \
     || { tail -60 "$bdir/make.log"; exit 1; }
+  echo "$VERSION" >"$destdir/.version"
 }
 
 build_arch arm64  aarch64-apple-darwin

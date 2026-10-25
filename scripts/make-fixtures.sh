@@ -5,13 +5,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIXTURES="$ROOT/tests/fixtures"
-TOOLS="$ROOT/vendor/build-arm64/tools"
+# Tools of the build that matches this Mac, so they can run here.
+TOOLS="$ROOT/vendor/build-$(uname -m)/tools"
 
 "$ROOT/scripts/build-djvulibre.sh" >/dev/null
 
 if [ ! -x "$TOOLS/c44" ]; then
   echo "==> Building DjVuLibre command line tools (encoders for the fixtures)"
-  make -C "$ROOT/vendor/build-arm64/tools" -j"$(sysctl -n hw.ncpu)" >/dev/null
+  make -C "$TOOLS" -j"$(sysctl -n hw.ncpu)" >/dev/null
 fi
 
 mkdir -p "$FIXTURES"
@@ -64,6 +65,10 @@ echo "==> Encoding DjVu fixtures"
 # Not a DjVu file at all: the extension must fail cleanly so Finder falls back
 # to the generic icon.
 head -c 200 /dev/urandom > "$FIXTURES/corrupt.djvu"
+# A real document cut in half: it passes the header check and fails while
+# decoding the page, which is the path that waits on DjVuLibre's messages.
+head -c $(($(stat -f %z "$FIXTURES/multipage.djvu") / 2)) "$FIXTURES/multipage.djvu" \
+  > "$FIXTURES/truncated.djvu"
 
 rm -f "$FIXTURES"/*.ppm "$FIXTURES"/*.pbm
 ls -l "$FIXTURES"

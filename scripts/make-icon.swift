@@ -9,7 +9,8 @@
 import AppKit
 import CoreText
 
-let sizes = [16, 32, 64, 128, 256, 512, 1024]
+// The sizes an iconset holds; each also gets an @2x image at double the size.
+let sizes = [16, 32, 128, 256, 512]
 
 // Deep slate blue to a lighter indigo, top to bottom.
 let topColor = CGColor(red: 0.16, green: 0.22, blue: 0.38, alpha: 1)
@@ -85,7 +86,7 @@ defer { try? FileManager.default.removeItem(at: iconset) }
 
 // iconutil wants each size as both a 1x and the 2x of the size below it.
 var names: [Int: [String]] = [:]
-for size in sizes where size <= 512 {
+for size in sizes {
     names[size, default: []].append("icon_\(size)x\(size).png")
     names[size * 2, default: []].append("icon_\(size)x\(size)@2x.png")
 }
@@ -99,6 +100,7 @@ for (side, fileNames) in names {
         let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
     else { exit(1) }
     for name in fileNames {
+        // Not stripped like the preview: iconutil re-encodes and adds EXIF back.
         try data.write(to: iconset.appendingPathComponent(name))
     }
 }

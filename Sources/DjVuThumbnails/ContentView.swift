@@ -94,8 +94,12 @@ final class PreviewModel: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var fileName: String?
+    // Lets a slow, earlier drop see that a newer one has replaced it.
+    private var dropCount = 0
 
     func load(from provider: NSItemProvider) {
+        dropCount += 1
+        let drop = dropCount
         state = .loading
         fileName = nil
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, error in
@@ -106,17 +110,21 @@ final class PreviewModel: ObservableObject {
                 return item as? URL
             }()
             Task { @MainActor in
+                guard drop == self.dropCount else { return }
                 guard let url else {
                     self.state = .failure(error?.localizedDescription ?? "Not a file")
                     return
                 }
                 self.fileName = url.lastPathComponent
-                await self.generate(for: url)
+                let state = await Self.thumbnailState(for: url)
+                if drop == self.dropCount {
+                    self.state = state
+                }
             }
         }
     }
 
-    private func generate(for url: URL) async {
+    private static func thumbnailState(for url: URL) async -> State {
         // Deliberately routed through Quick Look so a failure here means the
         // extension is not registered, not that decoding is broken.
         let request = QLThumbnailGenerator.Request(
@@ -128,9 +136,9 @@ final class PreviewModel: ObservableObject {
         do {
             let representation = try await QLThumbnailGenerator.shared
                 .generateBestRepresentation(for: request)
-            state = .thumbnail(representation.nsImage)
+            return .thumbnail(representation.nsImage)
         } catch {
-            state = .failure(
+            return .failure(
                 "Quick Look could not make a thumbnail:\n\(error.localizedDescription)"
             )
         }
