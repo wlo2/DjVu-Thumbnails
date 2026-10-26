@@ -12,8 +12,8 @@ settings:
     ARCHS: "arm64 x86_64"
     ONLY_ACTIVE_ARCH: NO
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.1"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "3"
     # No paid developer account is required: ad-hoc signing is enough for a
     # locally installed Quick Look extension.
     CODE_SIGN_STYLE: Manual
@@ -51,6 +51,12 @@ targets:
     dependencies:
       - target: DjVuThumbnailExtension
         embed: true
+      # Spotlight finds importers inside an app at Contents/Library/Spotlight.
+      - target: DjVuImporter
+        embed: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Library/Spotlight
       - sdk: QuickLookThumbnailing.framework
 
   DjVuThumbnailExtension:
@@ -60,24 +66,50 @@ targets:
       - path: Sources/DjVuThumbnailExtension
       - path: Sources/CDjVuRender
     settings:
+      groups: [djvulibre]
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.djvuthumbnails.DjVuThumbnails.Thumbnail
         PRODUCT_NAME: DjVuThumbnailExtension
         INFOPLIST_FILE: Sources/DjVuThumbnailExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: Sources/DjVuThumbnailExtension/DjVuThumbnailExtension.entitlements
-        APPLICATION_EXTENSION_API_ONLY: YES
         SWIFT_OBJC_BRIDGING_HEADER: Sources/DjVuThumbnailExtension/DjVuThumbnailExtension-Bridging-Header.h
-        HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/Sources/CDjVuRender/include
-          - $(SRCROOT)/vendor/djvulibre-install/include
-        LIBRARY_SEARCH_PATHS:
-          - $(SRCROOT)/vendor/djvulibre-install/lib
-        # DjVuLibre is linked statically, so the extension carries its own
-        # decoder and depends on nothing outside its bundle.
-        OTHER_LDFLAGS:
-          - -ldjvulibre
-          - -lc++
     dependencies:
       - sdk: QuickLookThumbnailing.framework
       - sdk: CoreGraphics.framework
       - sdk: CoreFoundation.framework
+
+  # A classic CFPlugIn: Spotlight on macOS does not call CSImportExtension
+  # app extensions for ordinary files.
+  DjVuImporter:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/DjVuImporter
+      - path: Sources/CDjVuRender
+    settings:
+      groups: [djvulibre]
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.djvuthumbnails.DjVuThumbnails.Importer
+        PRODUCT_NAME: DjVuImporter
+        WRAPPER_EXTENSION: mdimporter
+        INFOPLIST_FILE: Sources/DjVuImporter/Info.plist
+        # A loadable bundle must keep its global symbols, the factory included.
+        STRIP_STYLE: non-global
+    dependencies:
+      - sdk: CoreServices.framework
+      - sdk: CoreFoundation.framework
+
+settingGroups:
+  # The Quick Look extension and the Spotlight importer both decode with the C
+  # shim and their own static DjVuLibre, so each depends on nothing outside
+  # its bundle.
+  djvulibre:
+    APPLICATION_EXTENSION_API_ONLY: YES
+    HEADER_SEARCH_PATHS:
+      - $(SRCROOT)/Sources/CDjVuRender/include
+      - $(SRCROOT)/vendor/djvulibre-install/include
+    LIBRARY_SEARCH_PATHS:
+      - $(SRCROOT)/vendor/djvulibre-install/lib
+    OTHER_LDFLAGS:
+      - -ldjvulibre
+      - -lc++

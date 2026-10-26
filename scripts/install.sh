@@ -39,6 +39,9 @@ done
 pluginkit -m -v -i org.djvuthumbnails.DjVuThumbnails.Thumbnail | grep -qF "$APPEX" \
   || { echo "The extension did not register; run this script again." >&2; exit 1; }
 
+echo "==> Registering the Spotlight importer"
+mdimport -r "$DEST/Contents/Library/Spotlight/DjVuImporter.mdimporter" >/dev/null 2>&1
+
 echo "==> Resetting the Quick Look thumbnail cache"
 qlmanage -r >/dev/null 2>&1 || true
 qlmanage -r cache >/dev/null 2>&1 || true

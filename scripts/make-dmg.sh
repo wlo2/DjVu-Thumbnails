@@ -34,7 +34,9 @@ cat >"$STAGE/INSTALL.txt" <<'EOF'
 DjVu Thumbnails
 ===============
 
-Makes Finder show the cover page of .djvu files as a thumbnail.
+Makes Finder show the cover page of .djvu files as a thumbnail, and makes
+Spotlight find DjVu books by the words in their OCR text layer, their title
+and their authors.
 
 Installing
 ----------
@@ -50,8 +52,10 @@ Installing
    Skipping this step means macOS silently refuses to load the extension:
    the app may open, but Finder keeps showing generic icons.
 
-3. Launch the app once. This is required — it is what registers the DjVu
-   document type with macOS. You can quit it straight afterwards.
+3. Launch the app once. This is required: it registers the DjVu document
+   type with macOS and has Spotlight index the DjVu files already on your
+   Mac. You can quit it straight afterwards. Indexing a large library takes
+   a while in the background.
 
 4. Drop a .djvu file on the app's window to confirm Quick Look is using the
    extension. Finder thumbnails should now appear.

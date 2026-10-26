@@ -62,6 +62,19 @@ echo "==> Encoding DjVu fixtures"
 "$TOOLS/cjb2" -dpi 300 "$FIXTURES/bitonal.pbm"  "$FIXTURES/bitonal.djvu"
 "$TOOLS/djvm" -c "$FIXTURES/multipage.djvu" "$FIXTURES/page1.djvu" "$FIXTURES/page2.djvu"
 
+# The multipage document plus what Spotlight indexes: a hidden text layer on
+# both pages and document metadata. Page 1 has non-ASCII text, to test cutting
+# on a character boundary; page 2 has a stray byte (octal 370) that is not
+# UTF-8, as real OCR layers do.
+cp "$FIXTURES/multipage.djvu" "$FIXTURES/text.djvu"
+printf '(page 0 0 600 800 "Ünïcode quokka marginalia")\n' >"$FIXTURES/p1.txt"
+printf '(page 0 0 600 800 "zebrafish second page \\370 footnote")\n' >"$FIXTURES/p2.txt"
+printf '%s\n' 'title "Spotlight Fixture"' 'author "Ada Lovelace and Alan Turing"' \
+  'keywords "quokka, fixture"' >"$FIXTURES/meta.txt"
+"$TOOLS/djvused" "$FIXTURES/text.djvu" -s -e "select 1; set-txt $FIXTURES/p1.txt;
+  select 2; set-txt $FIXTURES/p2.txt; select; set-meta $FIXTURES/meta.txt"
+rm -f "$FIXTURES"/p1.txt "$FIXTURES"/p2.txt "$FIXTURES"/meta.txt
+
 # Not a DjVu file at all: the extension must fail cleanly so Finder falls back
 # to the generic icon.
 head -c 200 /dev/urandom > "$FIXTURES/corrupt.djvu"

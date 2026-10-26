@@ -1,5 +1,6 @@
 // Thin C wrapper over DjVuLibre's ddjvu API: decodes the first page of a
-// DjVu document into a plain RGB bitmap that Core Graphics can wrap directly.
+// DjVu document into a plain RGB bitmap that Core Graphics can wrap directly,
+// and reads the text and metadata that Spotlight indexes.
 #ifndef DJVU_RENDER_H
 #define DJVU_RENDER_H
 
@@ -33,6 +34,25 @@ typedef enum {
 DJVResult DJVRenderFirstPage(const char *path, int maxPixelSize, DJVBitmap *out);
 
 void DJVBitmapFree(DJVBitmap *bitmap);
+
+/// What Spotlight indexes about a document. Free with DJVDocumentInfoFree.
+typedef struct {
+    char *text;            // hidden (OCR) text of all pages, UTF-8; NULL if none
+    size_t textLength;
+    int textTruncated;     // 1 if the text stopped at maxTextBytes
+    int pageCount;
+    double pageWidth;      // page 1 in points (1/72 inch); 0 if unknown
+    double pageHeight;
+    char **metadata;       // key, value, key, value, ...
+    int metadataCount;     // number of key/value pairs
+} DJVDocumentInfo;
+
+/// Reads page count, page 1 size, metadata and up to `maxTextBytes` of hidden
+/// text, cut on a UTF-8 character boundary. Decodes no images.
+/// On DJVResultOK the caller must call DJVDocumentInfoFree.
+DJVResult DJVReadDocumentInfo(const char *path, size_t maxTextBytes, DJVDocumentInfo *out);
+
+void DJVDocumentInfoFree(DJVDocumentInfo *info);
 
 /// Copies the most recent DjVuLibre error for the calling thread into `buffer`.
 /// Returns 1 if a message was available.
