@@ -123,5 +123,5 @@ extension is not the one in `build/`, so run `install.sh` after building. Any
 
 ## Licence
 
-GPL v2 (see [LICENSE](LICENSE)). DjVuLibre is GPL v2 and is linked statically,
-so this extension is GPL v2 as well.
+GPL v3 (see [LICENSE](LICENSE)). DjVuLibre is licensed under GPL v2 or any
+later version and is linked statically, which lets the combined work use v3.

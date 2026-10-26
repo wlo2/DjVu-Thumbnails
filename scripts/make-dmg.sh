@@ -20,7 +20,7 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "$APP/Contents/Info.plist")"
 VOLNAME="DjVu Thumbnails"
 DMG="$ROOT/build/DjVu-Thumbnails-$VERSION.dmg"
-# DjVuLibre is GPL v2 and linked statically, so its source ships with every release.
+# DjVuLibre is GPL and linked statically, so its source ships with every release.
 SOURCE_TARBALL="djvulibre-$(sed -n 's/^VERSION=//p' "$ROOT/scripts/build-djvulibre.sh").tar.gz"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -70,8 +70,8 @@ Delete the app from /Applications, then run:
 Licence
 -------
 
-Uses DjVuLibre (https://djvu.sourceforge.net), GPL v2, linked statically.
-This software is therefore GPL v2 as well.
+This software is licensed under GPL v3. It uses DjVuLibre
+(https://djvu.sourceforge.net), GPL v2 or later, linked statically.
 EOF
 printf '%s\n' "The DjVuLibre source, $SOURCE_TARBALL, is attached to the same release" \
   "as this disk image: https://github.com/wlo2/DjVu-Thumbnails/releases" \
