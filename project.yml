@@ -13,7 +13,7 @@ settings:
     ONLY_ACTIVE_ARCH: NO
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "4"
     # No paid developer account is required: ad-hoc signing is enough for a
     # locally installed Quick Look extension.
     CODE_SIGN_STYLE: Manual
