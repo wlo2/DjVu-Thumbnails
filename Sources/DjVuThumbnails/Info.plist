@@ -25,7 +25,8 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Licensed under GPL v3. Uses DjVuLibre (GPL v2 or later).</string>
+	<string>gggggJJJJJJJJJJJJJEEEEEEEBBBBbbbBDDDDDDDDdddddddDDDDT Industries
+Licensed under GPL v3. Uses DjVuLibre (GPL v2 or later).</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticTermination</key>

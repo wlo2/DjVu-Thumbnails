@@ -12,8 +12,8 @@ settings:
     ARCHS: "arm64 x86_64"
     ONLY_ACTIVE_ARCH: NO
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "4"
+    MARKETING_VERSION: "1.3"
+    CURRENT_PROJECT_VERSION: "5"
     # No paid developer account is required: ad-hoc signing is enough for a
     # locally installed Quick Look extension.
     CODE_SIGN_STYLE: Manual
@@ -30,6 +30,8 @@ settings:
     STRIP_INSTALLED_PRODUCT: YES
     STRIP_STYLE: all
     COPY_PHASE_STRIP: NO
+    # Drops the parts of DjVuLibre that nothing calls.
+    DEAD_CODE_STRIPPING: YES
     GCC_WARN_ABOUT_RETURN_TYPE: YES
     CLANG_WARN_DOCUMENTATION_COMMENTS: NO
 
@@ -111,5 +113,7 @@ settingGroups:
     LIBRARY_SEARCH_PATHS:
       - $(SRCROOT)/vendor/djvulibre-install/lib
     OTHER_LDFLAGS:
-      - -ldjvulibre
+      # Linked hidden: a bundle exports every global symbol, and exported code
+      # survives dead stripping.
+      - -Wl,-hidden-ldjvulibre
       - -lc++

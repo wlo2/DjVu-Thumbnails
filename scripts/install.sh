@@ -21,8 +21,9 @@ cp -R "$SRC" "$DEST"
 
 echo "==> Registering with Launch Services"
 # xcodebuild registers the build copy too; with both registered, Quick Look may
-# run the dev build instead of the installed one.
-"$LSREGISTER" -u "$SRC"
+# run the dev build instead of the installed one. On a second run the build
+# copy is already unregistered, which lsregister reports as an error.
+"$LSREGISTER" -u "$SRC" 2>/dev/null || true
 "$LSREGISTER" -f "$DEST"
 
 echo "==> Enabling the Quick Look extension"

@@ -3,6 +3,7 @@
 #include <libdjvu/ddjvuapi.h>
 #include <libdjvu/miniexp.h>
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,9 +65,16 @@ static void djv_drain_messages(ddjvu_context_t *ctx, int wait) {
     }
 }
 
+// DjVuLibre creates several shared objects on first use without a lock. Two
+// documents decoded at once in a fresh process (Quick Look sends several
+// requests together) can then fail, hang or corrupt the heap, so a process
+// decodes one document at a time: djv_open locks and djv_close unlocks.
+static pthread_mutex_t djv_document_lock = PTHREAD_MUTEX_INITIALIZER;
+
 // Opens the document and waits until its page directory is known. On failure
 // the caller still releases whatever was created, through djv_close.
 static DJVResult djv_open(const char *path, ddjvu_context_t **ctx, ddjvu_document_t **doc) {
+    pthread_mutex_lock(&djv_document_lock);
     *ctx = ddjvu_context_create("DjVuThumbnails");
     if (!*ctx) {
         return DJVResultContextFailed;
@@ -95,6 +103,7 @@ static void djv_close(ddjvu_context_t *ctx, ddjvu_document_t *doc) {
         djv_drain_messages(ctx, /*wait=*/0);
         ddjvu_context_release(ctx);
     }
+    pthread_mutex_unlock(&djv_document_lock);
 }
 
 void DJVBitmapFree(DJVBitmap *bitmap) {
@@ -383,11 +392,10 @@ DJVResult DJVReadDocumentInfo(const char *path, size_t maxTextBytes, DJVDocument
             djv_drain_messages(ctx, /*wait=*/1);
         }
         if (status == DDJVU_JOB_OK && pageinfo.dpi > 0) {
-            // Points are 1/72 inch; an odd rotation turns the page on its side.
-            double width = pageinfo.width * 72.0 / pageinfo.dpi;
-            double height = pageinfo.height * 72.0 / pageinfo.dpi;
-            out->pageWidth = (pageinfo.rotation & 1) ? height : width;
-            out->pageHeight = (pageinfo.rotation & 1) ? width : height;
+            // Points are 1/72 inch. DjVuLibre has already swapped width and
+            // height for a page stored turned on its side.
+            out->pageWidth = pageinfo.width * 72.0 / pageinfo.dpi;
+            out->pageHeight = pageinfo.height * 72.0 / pageinfo.dpi;
         }
 
         result = djv_read_metadata(ctx, doc, out);

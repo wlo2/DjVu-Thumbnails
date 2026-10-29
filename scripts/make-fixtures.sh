@@ -64,15 +64,20 @@ echo "==> Encoding DjVu fixtures"
 
 # The multipage document plus what Spotlight indexes: a hidden text layer on
 # both pages and document metadata. Page 1 has non-ASCII text, to test cutting
-# on a character boundary; page 2 has a stray byte (octal 370) that is not
-# UTF-8, as real OCR layers do.
+# on a character boundary, and is stored turned 90 degrees, so its size must
+# come out landscape. Page 2 mixes valid 3- and 4-byte characters with bytes
+# that are not UTF-8, as real OCR layers have: a stray byte (octal 370), then
+# in brackets a surrogate, an overlong form, a code point past U+10FFFF and a
+# cut-off character, and one more cut off at the very end.
 cp "$FIXTURES/multipage.djvu" "$FIXTURES/text.djvu"
 printf '(page 0 0 600 800 "Ünïcode quokka marginalia")\n' >"$FIXTURES/p1.txt"
-printf '(page 0 0 600 800 "zebrafish second page \\370 footnote")\n' >"$FIXTURES/p2.txt"
+p2='zebrafish second page \370 footnote “€𝄞” [\355\240\200] [\340\200\200]'
+p2+=' [\364\220\200\200] [\342\202] end\342\202'
+printf '(page 0 0 600 800 "%s")\n' "$p2" >"$FIXTURES/p2.txt"
 printf '%s\n' 'title "Spotlight Fixture"' 'author "Ada Lovelace and Alan Turing"' \
   'keywords "quokka, fixture"' >"$FIXTURES/meta.txt"
 "$TOOLS/djvused" "$FIXTURES/text.djvu" -s -e "select 1; set-txt $FIXTURES/p1.txt;
-  select 2; set-txt $FIXTURES/p2.txt; select; set-meta $FIXTURES/meta.txt"
+  set-rotation 1; select 2; set-txt $FIXTURES/p2.txt; select; set-meta $FIXTURES/meta.txt"
 rm -f "$FIXTURES"/p1.txt "$FIXTURES"/p2.txt "$FIXTURES"/meta.txt
 
 # Not a DjVu file at all: the extension must fail cleanly so Finder falls back

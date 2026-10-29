@@ -130,7 +130,9 @@ returned.
 The suite has four layers:
 
 1. The decoder shim under AddressSanitizer. A non-DjVu file, a truncated one and
-   a missing one must all be rejected without a crash or a hang.
+   a missing one must all be rejected without a crash or a hang. Then 300 fresh
+   processes each render from 8 threads at once, the way Quick Look calls the
+   extension, because DjVuLibre is not safe to start up from several threads.
 2. Orientation and colour assertions against synthetic fixtures, plus a check
    that a multipage document thumbnails its cover and not a later page.
 3. The Spotlight importer, called directly and under AddressSanitizer: the text

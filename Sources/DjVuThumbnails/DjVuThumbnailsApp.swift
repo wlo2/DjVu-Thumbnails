@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct DjVuThumbnailsApp: App {
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
+
     init() {
         registerSpotlightImporter()
     }
@@ -13,6 +15,13 @@ struct DjVuThumbnailsApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
+    }
+}
+
+// The app is a single window, so closing it means the user is done.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
     }
 }
 

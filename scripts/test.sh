@@ -13,18 +13,19 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 FIXTURES="$ROOT/tests/fixtures"
-if [ ! -f "$FIXTURES/text.djvu" ]; then
+# Also rebuilt after make-fixtures.sh changes, so new checks never run on old files.
+if [ ! "$FIXTURES/text.djvu" -nt "$ROOT/scripts/make-fixtures.sh" ]; then
   "$ROOT/scripts/make-fixtures.sh" >/dev/null
 fi
 
 status=0
+# What a test program needs to link the C shim against the static DjVuLibre.
+DJVULIBRE=(-ISources/CDjVuRender/include -Ivendor/djvulibre-install/include
+  vendor/djvulibre-install/lib/libdjvulibre.a -lc++ -framework CoreFoundation)
 
 echo "== Decoder shim (ASan) =="
-clang -O1 -g -fsanitize=address \
-  -o "$WORK/render_smoke" \
-  tests/render_smoke.c Sources/CDjVuRender/DjVuRender.c \
-  -ISources/CDjVuRender/include -Ivendor/djvulibre-install/include \
-  vendor/djvulibre-install/lib/libdjvulibre.a -lc++ -framework CoreFoundation || exit 1
+clang -O1 -g -fsanitize=address -o "$WORK/render_smoke" \
+  tests/render_smoke.c Sources/CDjVuRender/DjVuRender.c "${DJVULIBRE[@]}" || exit 1
 
 for name in page1 page2 bitonal multipage; do
   "$WORK/render_smoke" "$FIXTURES/$name.djvu" 512 "$WORK/$name.ppm" || status=1
@@ -45,6 +46,21 @@ if grep -q "(ByteStream.open_fail Parameter: .*does-not-exist.djvu Parameter: " 
   echo "OK   error message is readable"
 else
   echo "FAIL error message for a missing file is not 'ByteStream.open_fail ...'"
+  status=1
+fi
+# Parallel renders in fresh processes; a race hits about 1 process in 100, so
+# 300 runs catch it almost surely. The alarm turns a hang into a failure.
+clang -O2 -o "$WORK/threads_smoke" tests/threads_smoke.c Sources/CDjVuRender/DjVuRender.c \
+  "${DJVULIBRE[@]}" || exit 1
+bad=0
+for _ in $(seq 300); do
+  perl -e 'alarm 10; exec @ARGV' "$WORK/threads_smoke" "$FIXTURES/page1.djvu" 2>/dev/null \
+    || bad=$((bad + 1))
+done
+if [ $bad -eq 0 ]; then
+  echo "OK   300 processes rendering from 8 threads at once"
+else
+  echo "FAIL $bad of 300 processes rendering from 8 threads at once failed, crashed or hung"
   status=1
 fi
 
@@ -99,8 +115,6 @@ PY
 
 echo
 echo "== Spotlight importer (ASan) =="
-DJVULIBRE=(-ISources/CDjVuRender/include -Ivendor/djvulibre-install/include
-  vendor/djvulibre-install/lib/libdjvulibre.a -lc++ -framework CoreFoundation)
 clang -O1 -g -fsanitize=address -o "$WORK/info_smoke" \
   tests/info_smoke.c Sources/CDjVuRender/DjVuRender.c "${DJVULIBRE[@]}" || exit 1
 clang -O1 -g -fsanitize=address -o "$WORK/importer_check" tests/importer_check.c \
@@ -123,10 +137,14 @@ def info(name, cap):
     return head.decode(), text.decode()  # decode() also proves the text is valid UTF-8
 
 head, text = info("text.djvu", 10 * 1024 * 1024)
-check(head.startswith("OK pages=2 size=144x192 truncated=0"), "text.djvu page count and size")
+# Page 1 is 144x192 points but stored turned 90 degrees.
+check(head.startswith("OK pages=2 size=192x144 truncated=0"),
+      "text.djvu page count, and page 1's size turned landscape")
 check("meta title=Spotlight Fixture" in head, "text.djvu metadata")
-check(text == "Ünïcode quokka marginalia\n\nzebrafish second page   footnote",
-      "text of both pages, with the stray byte turned into a space")
+# Every byte that is not valid UTF-8 becomes one space; valid characters stay.
+page2 = "zebrafish second page   footnote “€𝄞” [   ] [   ] [    ] [  ] end  "
+check(text == "Ünïcode quokka marginalia\n\n" + page2,
+      "text of both pages, with every invalid byte turned into a space")
 # "Ü" and "ï" take two bytes each, so a 4-byte cap must stop before "ï".
 head, text = info("text.djvu", 4)
 check(text == "Ün" and "truncated=1" in head, "text cap stops on a character boundary")
@@ -142,7 +160,7 @@ check(attributes.get("kMDItemTitle") == "Spotlight Fixture"
       and attributes.get("kMDItemAuthors") == ["Ada Lovelace", "Alan Turing"]
       and attributes.get("kMDItemKeywords") == ["quokka", "fixture"]
       and attributes.get("kMDItemNumberOfPages") == 2
-      and attributes.get("kMDItemPageWidth") == 144
+      and attributes.get("kMDItemPageWidth") == 192
       and "zebrafish" in attributes.get("kMDItemTextContent", ""),
       "importer attributes")
 rejected = subprocess.run([f"{work}/importer_check", f"{fixtures}/corrupt.djvu"],
